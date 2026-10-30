@@ -1,10 +1,18 @@
+databases:
+  - name: crypto-key-management-db
+    databaseName: crypto_key_management
+    user: crypto_key_management
+    plan: basic-256mb
+    postgresMajorVersion: "16"
+    ipAllowList: []
+
 services:
   - type: web
     name: crypto-key-management
     runtime: python
     plan: free
     buildCommand: python -m pip install -r requirements.txt && python manage.py collectstatic --no-input
-    startCommand: python -m gunicorn Key.wsgi:application --bind 0.0.0.0:$PORT
+    startCommand: python manage.py ensure_keyapp_schema && python -m gunicorn Key.wsgi:application --bind 0.0.0.0:$PORT
     healthCheckPath: /
     envVars:
       - key: PYTHON_VERSION
@@ -13,15 +21,9 @@ services:
         generateValue: true
       - key: DEBUG
         value: "false"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: crypto-key-management-db
+          property: connectionString
       - key: KEYAPP_MASTER_KEY
-        sync: false
-      - key: KEYAPP_DB_HOST
-        sync: false
-      - key: KEYAPP_DB_PORT
-        value: "3306"
-      - key: KEYAPP_DB_USER
-        sync: false
-      - key: KEYAPP_DB_PASSWORD
-        sync: false
-      - key: KEYAPP_DB_NAME
         sync: false
