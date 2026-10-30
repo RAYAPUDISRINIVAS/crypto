@@ -161,5 +161,3 @@ CSRF_COOKIE_SECURE = not DEBUG
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 KEYAPP_MASTER_KEY = os.environ.get("KEYAPP_MASTER_KEY")
-if not KEYAPP_MASTER_KEY:
-    raise ImproperlyConfigured("KEYAPP_MASTER_KEY must be set in the environment.")

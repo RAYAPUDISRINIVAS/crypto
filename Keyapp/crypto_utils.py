@@ -1,10 +1,12 @@
-import os
+from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from cryptography.fernet import Fernet
 
+
 def _master_fernet() -> Fernet:
-    master_key = os.environ.get("KEYAPP_MASTER_KEY")
+    master_key = settings.KEYAPP_MASTER_KEY
     if not master_key:
-        raise RuntimeError("KEYAPP_MASTER_KEY not set in environment")
+        raise ImproperlyConfigured("KEYAPP_MASTER_KEY must be set in the environment.")
     return Fernet(master_key.encode("utf-8"))
 
 def generate_user_key() -> bytes:
@@ -26,11 +28,3 @@ def encrypt_with_user_key(user_key: bytes, plaintext: str) -> str:
 def decrypt_with_user_key(user_key: bytes, ciphertext: str) -> str:
     f = Fernet(user_key)
     return f.decrypt(ciphertext.encode("utf-8")).decode("utf-8")
-
-from django.conf import settings
-from cryptography.fernet import Fernet
-
-
-def _master_fernet():
-    master_key = settings.KEYAPP_MASTER_KEY
-    return Fernet(master_key.encode())
