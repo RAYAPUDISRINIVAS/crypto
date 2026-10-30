@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: crypto-key-management
+    runtime: python
+    plan: free
+    buildCommand: python -m pip install -r requirements.txt && python manage.py collectstatic --no-input
+    startCommand: python -m gunicorn Key.wsgi:application --bind 0.0.0.0:$PORT
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.11
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "false"
+      - key: KEYAPP_MASTER_KEY
+        sync: false
+      - key: KEYAPP_DB_HOST
+        sync: false
+      - key: KEYAPP_DB_PORT
+        value: "3306"
+      - key: KEYAPP_DB_USER
+        sync: false
+      - key: KEYAPP_DB_PASSWORD
+        sync: false
+      - key: KEYAPP_DB_NAME
+        sync: false
