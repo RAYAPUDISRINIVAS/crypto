@@ -96,6 +96,17 @@
     display:none;
   }
 
+  .server-error{
+    background:rgba(255, 77, 77, 0.12);
+    border:1px solid rgba(255, 77, 77, 0.35);
+    padding:10px;
+    border-radius:10px;
+    text-align:center;
+    margin-bottom:14px;
+    font-size:14px;
+    color:#ffd1d1;
+  }
+
   .hint{
     font-size:12px;
     margin-top:8px;
@@ -161,6 +172,10 @@
 
   {% if msg %}
     <div class="msg"><b>{{ msg }}</b></div>
+  {% endif %}
+
+  {% if error_msg %}
+    <div class="server-error" role="alert"><b>{{ error_msg }}</b></div>
   {% endif %}
 
   <div class="error" id="errBox"><b>Please enter valid username and password.</b></div>
