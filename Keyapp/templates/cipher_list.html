@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cryptography Key Management - Ciphertexts</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+  :root{
+    --bg: rgba(0,0,0,0.70);
+    --border: rgba(255,255,255,0.14);
+    --text: #ffffff;
+    --muted: #d7d7d7;
+    --accent: #00c6ff;
+    --success:#06d6a0;
+    --danger:#ff4d4d;
+    --shadow: 0 14px 40px rgba(0,0,0,0.38);
+  }
+  *{ box-sizing:border-box; }
+
+  body{
+    margin:0;
+    font-family: Arial, Helvetica, sans-serif;
+    min-height:100vh;
+    color:var(--text);
+    background:
+      linear-gradient(180deg, rgba(0,0,0,0.55), rgba(0,0,0,0.82)),
+      url("https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=1800&q=80");
+    background-size:cover;
+    background-position:center;
+  }
+
+  /* Navbar */
+  .navbar{
+    position:sticky;
+    top:0;
+    z-index:10;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:14px 20px;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255,255,255,0.10);
+  }
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-weight:700;
+    letter-spacing:.4px;
+  }
+  .logo{
+    width:34px;
+    height:34px;
+    border-radius:10px;
+    background: linear-gradient(135deg, var(--accent), var(--success));
+    box-shadow: 0 8px 18px rgba(0,0,0,0.35);
+  }
+  .nav-right{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+    justify-content:flex-end;
+  }
+  .pill{
+    padding:8px 12px;
+    border: 1px solid rgba(255,255,255,0.16);
+    background: rgba(255,255,255,0.06);
+    border-radius:999px;
+    font-size:13px;
+    color: var(--muted);
+    white-space:nowrap;
+  }
+  .nav-link{
+    text-decoration:none;
+    color:#fff;
+    font-size:14px;
+    padding:9px 12px;
+    border-radius:10px;
+    border:1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.06);
+    transition:.25s;
+    white-space:nowrap;
+  }
+  .nav-link:hover{
+    transform: translateY(-1px);
+    background: rgba(255,255,255,0.10);
+  }
+  .logout{
+    border-color: rgba(255, 77, 77, 0.35);
+    background: rgba(255, 77, 77, 0.12);
+  }
+
+  /* Layout */
+  .wrap{
+    max-width:1150px;
+    margin: 26px auto;
+    padding: 0 18px 30px;
+  }
+
+  .header{
+    background: var(--bg);
+    border:1px solid rgba(255,255,255,0.12);
+    border-radius:16px;
+    padding:18px;
+    box-shadow: var(--shadow);
+  }
+
+  .header-top{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:12px;
+    flex-wrap:wrap;
+  }
+
+  .header h1{
+    margin:0;
+    font-size:22px;
+    letter-spacing:.3px;
+  }
+  .header p{
+    margin:8px 0 0 0;
+    color:var(--muted);
+    line-height:1.5;
+    font-size:13px;
+    max-width:850px;
+  }
+
+  .actions{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    justify-content:flex-end;
+  }
+
+  .btn{
+    display:inline-block;
+    text-decoration:none;
+    padding:10px 12px;
+    border-radius:12px;
+    font-size:14px;
+    border:1px solid rgba(255,255,255,0.14);
+    background: rgba(255,255,255,0.06);
+    color:#fff;
+    transition:.25s;
+    white-space:nowrap;
+    cursor:pointer;
+  }
+  .btn:hover{
+    background: rgba(255,255,255,0.12);
+    transform: translateY(-1px);
+  }
+  .primary{
+    border-color: rgba(0,198,255,0.38);
+    background: rgba(0,198,255,0.14);
+  }
+  .danger{
+    border-color: rgba(255,77,77,0.45);
+    background: rgba(255,77,77,0.14);
+  }
+
+  /* Table Card */
+  .table-card{
+    margin-top:14px;
+    border-radius:16px;
+    border:1px solid rgba(255,255,255,0.12);
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(8px);
+    box-shadow: var(--shadow);
+    overflow:hidden;
+  }
+
+  .table-top{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    padding:14px;
+    border-bottom:1px solid rgba(255,255,255,0.10);
+    flex-wrap:wrap;
+  }
+
+  .table-top h2{
+    margin:0;
+    font-size:16px;
+    letter-spacing:.2px;
+  }
+
+  .search{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+
+  .search input{
+    width: min(360px, 78vw);
+    padding:10px 12px;
+    border-radius:12px;
+    border:1px solid rgba(255,255,255,0.14);
+    background: rgba(255,255,255,0.06);
+    color:#fff;
+    outline:none;
+    font-size:14px;
+  }
+
+  table{
+    width:100%;
+    border-collapse:collapse;
+  }
+
+  th, td{
+    padding:12px 12px;
+    text-align:left;
+    border-bottom: 1px solid rgba(255,255,255,0.10);
+    font-size:14px;
+    vertical-align:middle;
+  }
+
+  th{
+    font-size:13px;
+    color: rgba(255,255,255,0.78);
+    background: rgba(255,255,255,0.04);
+    letter-spacing:.2px;
+    position:sticky;
+    top:64px; /* below navbar */
+    z-index:2;
+  }
+
+  tr:hover td{
+    background: rgba(255,255,255,0.04);
+  }
+
+  .badge{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    padding:6px 10px;
+    border-radius:999px;
+    border:1px solid rgba(255,255,255,0.14);
+    background: rgba(255,255,255,0.06);
+    font-size:12px;
+    white-space:nowrap;
+    color: rgba(255,255,255,0.88);
+  }
+  .badge-kv{
+    border-color: rgba(0,198,255,0.38);
+    background: rgba(0,198,255,0.14);
+  }
+
+  .link{
+    color:#fff;
+    text-decoration:none;
+    padding:7px 10px;
+    border-radius:10px;
+    border:1px solid rgba(255,255,255,0.14);
+    background: rgba(255,255,255,0.06);
+    font-size:13px;
+    transition:.25s;
+    display:inline-block;
+  }
+  .link:hover{
+    background: rgba(255,255,255,0.12);
+    transform: translateY(-1px);
+  }
+  .link-primary{
+    border-color: rgba(0,198,255,0.38);
+    background: rgba(0,198,255,0.14);
+  }
+
+  .empty{
+    padding:16px;
+    color: rgba(255,255,255,0.78);
+    font-size:14px;
+  }
+
+  .footer{
+    margin-top:16px;
+    text-align:center;
+    color: rgba(255,255,255,0.70);
+    font-size:13px;
+  }
+
+  /* Rotate modal */
+  .modal-backdrop{
+    display:none;
+    position:fixed;
+    inset:0;
+    background: rgba(0,0,0,0.65);
+    backdrop-filter: blur(6px);
+    z-index:50;
+    align-items:center;
+    justify-content:center;
+    padding:16px;
+  }
+  .modal{
+    width: min(560px, 96vw);
+    background: rgba(20,20,20,0.92);
+    border:1px solid rgba(255,255,255,0.14);
+    border-radius:16px;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.55);
+    padding:18px;
+  }
+  .modal h4{ margin:0 0 8px 0; font-size:16px; }
+  .modal p{ margin:0 0 12px 0; color: var(--muted); line-height:1.5; font-size:13px; }
+  .modal-actions{
+    display:flex;
+    justify-content:flex-end;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-top:14px;
+  }
+  .kbd{
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size:12px;
+    padding:2px 8px;
+    border-radius:999px;
+    border:1px solid rgba(255,255,255,0.14);
+    background: rgba(255,255,255,0.06);
+    color:#fff;
+    display:inline-block;
+  }
+</style>
+</head>
+
+<body>
+
+<!-- NAVBAR -->
+<div class="navbar">
+  <div class="brand">
+    <div class="logo"></div>
+    <div>
+      Cryptography Key Management
+      <div style="font-weight:400; font-size:12px; color:rgba(255,255,255,0.75); margin-top:2px;">
+        Ciphertexts • select item • decrypt securely
+      </div>
+    </div>
+  </div>
+
+  <div class="nav-right">
+    <div class="pill">Signed in as <b>{{ user }}</b></div>
+    <a class="nav-link" href="{% url 'user_home' %}">Dashboard</a>
+    <a class="nav-link" href="{% url 'encrypt_data' %}">Encrypt</a>
+    <a class="nav-link" href="{% url 'view_keys' %}">Manage Keys</a>
+    <a class="nav-link logout" href="{% url 'logout' %}">Logout</a>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <h1>Select Encrypted Item to Decrypt</h1>
+        <p>
+          Each record is stored with the key version used during encryption.
+          Choose an item to decrypt and view the plaintext result.
+        </p>
+      </div>
+
+      <div class="actions">
+        <a class="btn primary" href="{% url 'encrypt_data' %}">+ Encrypt New Data</a>
+        <a class="btn danger" href="#" id="rotateBtn">Rotate + Re-encrypt</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="table-card">
+    <div class="table-top">
+      <h2>Ciphertext Records</h2>
+      <div class="search">
+        <input type="text" id="searchBox" placeholder="Search by ID / key version / created date...">
+      </div>
+    </div>
+
+    {% if items %}
+      <div style="overflow:auto;">
+        <table id="itemsTable">
+          <thead>
+            <tr>
+              <th style="min-width:90px;">ID</th>
+              <th style="min-width:140px;">Key Version</th>
+              <th style="min-width:200px;">Created</th>
+              <th style="min-width:180px;">Action</th>
+            </tr>
+          </thead>
+
+          <tbody>
+          {% for x in items %}
+            <tr>
+              <td><b>#{{ x.id }}</b></td>
+              <td><span class="badge badge-kv">🔑 v{{ x.key_version }}</span></td>
+              <td style="color:rgba(255,255,255,0.78);">{{ x.created_at }}</td>
+              <td>
+                <a class="link link-primary" href="{% url 'decrypt_data' x.id %}">Decrypt</a>
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty">No encrypted data found.</div>
+    {% endif %}
+  </div>
+
+  <div class="footer">
+    © 2026 Cryptography Key Management System • Ciphertext Repository
+  </div>
+</div>
+
+<!-- ROTATE MODAL -->
+<div class="modal-backdrop" id="rotateBackdrop" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="rotateTitle">
+    <h4 id="rotateTitle">Confirm Rotation & Re-encryption</h4>
+    <p>
+      This will <b>rotate the active key</b> and <b>re-encrypt all existing data</b> using the newest key version.
+      Recommended to run during low traffic.
+    </p>
+    <p>Type <span class="kbd">ROTATE</span> to confirm.</p>
+
+    <input type="text" id="rotateConfirm"
+           placeholder="Type ROTATE to continue"
+           style="width:100%; padding:10px 12px; border-radius:10px; border:none; outline:none;">
+
+    <div class="modal-actions">
+      <button type="button" class="btn" id="rotateCancel">Cancel</button>
+      <a class="btn danger" id="rotateGo" href="{% url 'rotate_and_reencrypt' %}"
+         style="pointer-events:none; opacity:.55;">Confirm & Run</a>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Table search filter
+  const searchBox = document.getElementById("searchBox");
+  const itemsTable = document.getElementById("itemsTable");
+
+  if(searchBox && itemsTable){
+    searchBox.addEventListener("input", () => {
+      const q = searchBox.value.trim().toLowerCase();
+      const rows = itemsTable.querySelectorAll("tbody tr");
+      rows.forEach(r => {
+        const text = r.innerText.toLowerCase();
+        r.style.display = text.includes(q) ? "" : "none";
+      });
+    });
+  }
+
+  // Rotate modal
+  const rotateBtn = document.getElementById("rotateBtn");
+  const rotateBackdrop = document.getElementById("rotateBackdrop");
+  const rotateConfirm = document.getElementById("rotateConfirm");
+  const rotateGo = document.getElementById("rotateGo");
+  const rotateCancel = document.getElementById("rotateCancel");
+
+  function openRotateModal(){
+    rotateBackdrop.style.display = "flex";
+    rotateBackdrop.setAttribute("aria-hidden","false");
+    rotateConfirm.value = "";
+    rotateGo.style.pointerEvents = "none";
+    rotateGo.style.opacity = ".55";
+    setTimeout(()=>rotateConfirm.focus(), 50);
+  }
+  function closeRotateModal(){
+    rotateBackdrop.style.display = "none";
+    rotateBackdrop.setAttribute("aria-hidden","true");
+  }
+
+  if(rotateBtn){
+    rotateBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      openRotateModal();
+    });
+  }
+  if(rotateCancel){
+    rotateCancel.addEventListener("click", closeRotateModal);
+  }
+  if(rotateBackdrop){
+    rotateBackdrop.addEventListener("click", (e) => {
+      if(e.target === rotateBackdrop) closeRotateModal();
+    });
+  }
+  document.addEventListener("keydown", (e) => {
+    if(e.key === "Escape" && rotateBackdrop.style.display === "flex") closeRotateModal();
+  });
+
+  if(rotateConfirm){
+    rotateConfirm.addEventListener("input", () => {
+      const ok = rotateConfirm.value.trim().toUpperCase() === "ROTATE";
+      rotateGo.style.pointerEvents = ok ? "auto" : "none";
+      rotateGo.style.opacity = ok ? "1" : ".55";
+    });
+  }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cryptography Key Management - Manage Keys</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+  :root{
+    --bg: rgba(0,0,0,0.70);
+    --card: rgba(255,255,255,0.08);
+    --card2: rgba(255,255,255,0.10);
+    --border: rgba(255,255,255,0.14);
+    --text: #ffffff;
+    --muted: #d7d7d7;
+    --accent: #00c6ff;
+    --success:#06d6a0;
+    --danger:#ff4d4d;
+    --warn:#ffd166;
+    --shadow: 0 14px 40px rgba(0,0,0,0.38);
+  }
+
+  *{ box-sizing:border-box; }
+
+  body{
+    margin:0;
+    font-family: Arial, Helvetica, sans-serif;
+    min-height:100vh;
+    color:var(--text);
+    background:
+      linear-gradient(180deg, rgba(0,0,0,0.55), rgba(0,0,0,0.78)),
+      url("https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=1800&q=80");
+    background-size:cover;
+    background-position:center;
+  }
+
+  /* Navbar */
+  .navbar{
+    position:sticky;
+    top:0;
+    z-index:10;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:14px 20px;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255,255,255,0.10);
+  }
+
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-weight:700;
+    letter-spacing:.4px;
+  }
+
+  .logo{
+    width:34px;
+    height:34px;
+    border-radius:10px;
+    background: linear-gradient(135deg, var(--accent), var(--success));
+    box-shadow: 0 8px 18px rgba(0,0,0,0.35);
+  }
+
+  .nav-right{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+    justify-content:flex-end;
+  }
+
+  .pill{
+    padding:8px 12px;
+    border: 1px solid rgba(255,255,255,0.16);
+    background: rgba(255,255,255,0.06);
+    border-radius:999px;
+    font-size:13px;
+    color: var(--muted);
+    white-space:nowrap;
+  }
+
+  .nav-link{
+    text-decoration:none;
+    color:#fff;
+    font-size:14px;
+    padding:9px 12px;
+    border-radius:10px;
+    border:1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.06);
+    transition:.25s;
+    white-space:nowrap;
+  }
+  .nav-link:hover{
+    transform: translateY(-1px);
+    background: rgba(255,255,255,0.10);
+  }
+
+  .logout{
+    border-color: rgba(255, 77, 77, 0.35);
+    background: rgba(255, 77, 77, 0.12);
+  }
+
+  /* Layout */
+  .wrap{
+    max-width:1200px;
+    margin: 26px auto;
+    padding: 0 18px 30px;
+  }
+
+  .header{
+    background: var(--bg);
+    border:1px solid rgba(255,255,255,0.12);
+    border-radius:16px;
+    padding:18px;
+    box-shadow: var(--shadow);
+  }
+
+  .header-top{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:12px;
+    flex-wrap:wrap;
+  }
+
+  .header h1{
+    margin:0;
+    font-size:22px;
+    letter-spacing:.3px;
+  }
+
+  .header p{
+    margin:8px 0 0 0;
+    color:var(--muted);
+    line-height:1.5;
+    font-size:13px;
+    max-width:850px;
+  }
+
+  .actions{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    justify-content:flex-end;
+  }
+
+  .btn{
+    display:inline-block;
+    text-decoration:none;
+    padding:10px 12px;
+    border-radius:12px;
+    font-size:14px;
+    border:1px solid rgba(255,255,255,0.14);
+    background: rgba(255,255,255,0.06);
+    color:#fff;
+    transition:.25s;
+    white-space:nowrap;
+    cursor:pointer;
+  }
+  .btn:hover{
+    background: rgba(255,255,255,0.12);
+    transform: translateY(-1px);
+  }
+
+  .primary{
+    border-color: rgba(0,198,255,0.38);
+    background: rgba(0,198,255,0.14);
+  }
+  .success{
+    border-color: rgba(6,214,160,0.38);
+    background: rgba(6,214,160,0.14);
+  }
+  .danger{
+    border-color: rgba(255,77,77,0.45);
+    background: rgba(255,77,77,0.14);
+  }
+
+  /* Alerts */
+  .alert{
+    margin-top:12px;
+    border-radius:14px;
+    padding:12px 14px;
+    border:1px solid rgba(255,255,255,0.14);
+    background: rgba(255,255,255,0.06);
+    font-size:14px;
+  }
+  .alert-success{
+    border-color: rgba(6,214,160,0.35);
+    background: rgba(6,214,160,0.12);
+    color:#bfffe9;
+  }
+  .alert-danger{
+    border-color: rgba(255,77,77,0.38);
+    background: rgba(255,77,77,0.12);
+    color:#ffd1d1;
+  }
+  .alert-warn{
+    border-color: rgba(255,209,102,0.35);
+    background: rgba(255,209,102,0.12);
+    color:#fff2c0;
+  }
+
+  /* Table Card */
+  .table-card{
+    margin-top:14px;
+    border-radius:16px;
+    border:1px solid rgba(255,255,255,0.12);
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(8px);
+    box-shadow: var(--shadow);
+    overflow:hidden;
+  }
+
+  .table-top{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    padding:14px 14px;
+    border-bottom:1px solid rgba(255,255,255,0.10);
+    flex-wrap:wrap;
+  }
+
+  .table-top h2{
+    margin:0;
+    font-size:16px;
+    letter-spacing:.2px;
+  }
+
+  .search{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+
+  .search input{
+    width: min(320px, 78vw);
+    padding:10px 12px;
+    border-radius:12px;
+    border:1px solid rgba(255,255,255,0.14);
+    background: rgba(255,255,255,0.06);
+    color:#fff;
+    outline:none;
+    font-size:14px;
+  }
+
+  table{
+    width:100%;
+    border-collapse:collapse;
+  }
+
+  th, td{
+    padding:12px 12px;
+    text-align:left;
+    border-bottom: 1px solid rgba(255,255,255,0.10);
+    font-size:14px;
+    vertical-align:middle;
+  }
+
+  th{
+    font-size:13px;
+    color: rgba(255,255,255,0.78);
+    background: rgba(255,255,255,0.04);
+    letter-spacing:.2px;
+    position:sticky;
+    top:64px; /* below navbar */
+    z-index:2;
+  }
+
+  tr:hover td{
+    background: rgba(255,255,255,0.04);
+  }
+
+  .badge{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    padding:6px 10px;
+    border-radius:999px;
+    border:1px solid rgba(255,255,255,0.14);
+    background: rgba(255,255,255,0.06);
+    font-size:12px;
+    white-space:nowrap;
+  }
+
+  .badge-active{
+    border-color: rgba(6,214,160,0.40);
+    background: rgba(6,214,160,0.14);
+  }
+
+  .badge-inactive{
+    border-color: rgba(255,77,77,0.40);
+    background: rgba(255,77,77,0.12);
+  }
+
+  .muted{
+    color: rgba(255,255,255,0.72);
+    font-size:13px;
+  }
+
+  .actions-cell{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+
+  .link{
+    color:#fff;
+    text-decoration:none;
+    padding:7px 10px;
+    border-radius:10px;
+    border:1px solid rgba(255,255,255,0.14);
+    background: rgba(255,255,255,0.06);
+    font-size:13px;
+    transition:.25s;
+  }
+  .link:hover{
+    background: rgba(255,255,255,0.12);
+    transform: translateY(-1px);
+  }
+
+  .link-danger{
+    border-color: rgba(255,77,77,0.45);
+    background: rgba(255,77,77,0.14);
+  }
+
+  .disabled{
+    opacity:.55;
+    pointer-events:none;
+  }
+
+  .footer{
+    margin-top:16px;
+    text-align:center;
+    color: rgba(255,255,255,0.70);
+    font-size:13px;
+  }
+
+  /* Modal */
+  .modal-backdrop{
+    display:none;
+    position:fixed;
+    inset:0;
+    background: rgba(0,0,0,0.65);
+    backdrop-filter: blur(6px);
+    z-index:50;
+    align-items:center;
+    justify-content:center;
+    padding:16px;
+  }
+
+  .modal{
+    width: min(560px, 96vw);
+    background: rgba(20,20,20,0.92);
+    border:1px solid rgba(255,255,255,0.14);
+    border-radius:16px;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.55);
+    padding:18px;
+  }
+
+  .modal h4{
+    margin:0 0 8px 0;
+    font-size:16px;
+  }
+
+  .modal p{
+    margin:0 0 12px 0;
+    color: var(--muted);
+    line-height:1.5;
+    font-size:13px;
+  }
+
+  .modal-actions{
+    display:flex;
+    justify-content:flex-end;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+
+  .kbd{
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size:12px;
+    padding:2px 8px;
+    border-radius:999px;
+    border:1px solid rgba(255,255,255,0.14);
+    background: rgba(255,255,255,0.06);
+    color:#fff;
+    display:inline-block;
+  }
+</style>
+</head>
+
+<body>
+
+<!-- NAVBAR -->
+<div class="navbar">
+  <div class="brand">
+    <div class="logo"></div>
+    <div>
+      Cryptography Key Management
+      <div style="font-weight:400; font-size:12px; color:rgba(255,255,255,0.75); margin-top:2px;">
+        Key lifecycle • revoke • destroy • rotate
+      </div>
+    </div>
+  </div>
+
+  <div class="nav-right">
+    <div class="pill">Signed in as <b>{{ user }}</b></div>
+    <a class="nav-link" href="{% url 'user_home' %}">Dashboard</a>
+    <a class="nav-link" href="{% url 'encrypt_data' %}">Encrypt</a>
+    <a class="nav-link" href="{% url 'list_ciphertexts' %}">Decrypt</a>
+    <a class="nav-link logout" href="{% url 'logout' %}">Logout</a>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <h1>Key Management</h1>
+        <p>
+          View key versions, track active status, and perform lifecycle operations such as
+          <b>Generate</b>, <b>Revoke</b>, and <b>Destroy</b>. For full migration, use <b>Rotate + Re-encrypt</b>.
+        </p>
+      </div>
+
+      <div class="actions">
+        <a class="btn success" href="{% url 'generate_key' %}">+ Generate New Key</a>
+        <a class="btn danger" href="#" id="rotateBtn">Rotate + Re-encrypt</a>
+      </div>
+    </div>
+
+    {% if msg %}
+      <div class="alert alert-success"><b>{{ msg }}</b></div>
+    {% endif %}
+
+    {% if active_version %}
+      <div class="alert alert-warn">
+        <b>Active Key Version:</b> {{ active_version }}
+        <span class="muted"> • This version is used for new encryption operations.</span>
+      </div>
+    {% else %}
+      <div class="alert alert-danger">
+        <b>No Active Key Found.</b> Please click <b>Generate New Key</b> to begin.
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="table-card">
+    <div class="table-top">
+      <h2>Key Versions</h2>
+      <div class="search">
+        <input type="text" id="searchBox" placeholder="Search by ID / version / status...">
+      </div>
+    </div>
+
+    {% if keys %}
+      <div style="overflow:auto;">
+        <table id="keysTable">
+          <thead>
+            <tr>
+              <th style="min-width:80px;">ID</th>
+              <th style="min-width:120px;">Key Version</th>
+              <th style="min-width:120px;">Status</th>
+              <th style="min-width:180px;">Created At</th>
+              <th style="min-width:180px;">Revoked At</th>
+              <th style="min-width:220px;">Actions</th>
+            </tr>
+          </thead>
+
+          <tbody>
+          {% for k in keys %}
+            <tr>
+              <td>{{ k.id }}</td>
+              <td><b>v{{ k.key_version }}</b></td>
+
+              <td>
+                {% if k.is_active %}
+                  <span class="badge badge-active">✅ Active</span>
+                {% else %}
+                  <span class="badge badge-inactive">❌ Inactive</span>
+                {% endif %}
+              </td>
+
+              <td class="muted">{{ k.created_at }}</td>
+
+              <td class="muted">
+                {% if k.revoked_at %}
+                  {{ k.revoked_at }}
+                {% else %}
+                  -
+                {% endif %}
+              </td>
+
+              <td>
+                <div class="actions-cell">
+                  {% if k.is_active %}
+                    <a class="link" href="{% url 'revoke_key' k.key_version %}" title="Disable this key version">Revoke</a>
+                  {% else %}
+                    <span class="link disabled" title="Only active keys can be revoked">Revoke</span>
+                  {% endif %}
+
+                  <a class="link link-danger"
+                     href="#"
+                     data-destroy-url="{% url 'destroy_key' k.key_version %}"
+                     data-version="{{ k.key_version }}"
+                     onclick="openDestroyModal(this); return false;">
+                     Destroy
+                  </a>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div style="padding:16px;">
+        <p class="muted" style="margin:0;">No keys generated yet.</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="footer">
+    © 2026 Cryptography Key Management System • Key Lifecycle & Audit View
+  </div>
+
+</div>
+
+<!-- ROTATE MODAL -->
+<div class="modal-backdrop" id="rotateBackdrop" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="rotateTitle">
+    <h4 id="rotateTitle">Confirm Rotation & Re-encryption</h4>
+    <p>
+      This will <b>rotate the active key</b> and <b>re-encrypt all existing data</b> using the newest key version.
+      Recommended to run during low traffic.
+    </p>
+    <p>Type <span class="kbd">ROTATE</span> to confirm.</p>
+
+    <input type="text" id="rotateConfirm"
+           placeholder="Type ROTATE to continue"
+           style="width:100%; padding:10px 12px; border-radius:10px; border:none; outline:none;">
+
+    <div class="modal-actions" style="margin-top:14px;">
+      <button type="button" class="btn" onclick="closeRotateModal()">Cancel</button>
+      <a class="btn danger" id="rotateGo" href="{% url 'rotate_and_reencrypt' %}"
+         style="pointer-events:none; opacity:.55;">Confirm & Run</a>
+    </div>
+  </div>
+</div>
+
+<!-- DESTROY MODAL -->
+<div class="modal-backdrop" id="destroyBackdrop" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="destroyTitle">
+    <h4 id="destroyTitle">Confirm Key Destruction</h4>
+    <p>
+      Destroying a key will make <b>old data undecryptable</b> for any ciphertext encrypted with that version.
+      Use this only when you are sure you no longer need that data.
+    </p>
+    <p>
+      Type <span class="kbd">DESTROY</span> to confirm for key version <b id="destroyVersion">—</b>.
+    </p>
+
+    <input type="text" id="destroyConfirm"
+           placeholder="Type DESTROY to continue"
+           style="width:100%; padding:10px 12px; border-radius:10px; border:none; outline:none;">
+
+    <div class="modal-actions" style="margin-top:14px;">
+      <button type="button" class="btn" onclick="closeDestroyModal()">Cancel</button>
+      <a class="btn danger" id="destroyGo" href="#"
+         style="pointer-events:none; opacity:.55;">Confirm Destroy</a>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Search filter for table rows
+  const searchBox = document.getElementById("searchBox");
+  const keysTable = document.getElementById("keysTable");
+
+  if(searchBox && keysTable){
+    searchBox.addEventListener("input", () => {
+      const q = searchBox.value.trim().toLowerCase();
+      const rows = keysTable.querySelectorAll("tbody tr");
+      rows.forEach(r => {
+        const text = r.innerText.toLowerCase();
+        r.style.display = text.includes(q) ? "" : "none";
+      });
+    });
+  }
+
+  // Rotate modal
+  const rotateBtn = document.getElementById("rotateBtn");
+  const rotateBackdrop = document.getElementById("rotateBackdrop");
+  const rotateConfirm = document.getElementById("rotateConfirm");
+  const rotateGo = document.getElementById("rotateGo");
+
+  function openRotateModal(){
+    rotateBackdrop.style.display = "flex";
+    rotateBackdrop.setAttribute("aria-hidden","false");
+    rotateConfirm.value = "";
+    rotateGo.style.pointerEvents = "none";
+    rotateGo.style.opacity = ".55";
+    setTimeout(()=>rotateConfirm.focus(), 50);
+  }
+
+  function closeRotateModal(){
+    rotateBackdrop.style.display = "none";
+    rotateBackdrop.setAttribute("aria-hidden","true");
+  }
+
+  if(rotateBtn){
+    rotateBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      openRotateModal();
+    });
+  }
+
+  if(rotateBackdrop){
+    rotateBackdrop.addEventListener("click", (e) => {
+      if(e.target === rotateBackdrop) closeRotateModal();
+    });
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if(e.key === "Escape"){
+      if(rotateBackdrop && rotateBackdrop.style.display === "flex") closeRotateModal();
+      const destroyBackdrop = document.getElementById("destroyBackdrop");
+      if(destroyBackdrop && destroyBackdrop.style.display === "flex") closeDestroyModal();
+    }
+  });
+
+  if(rotateConfirm){
+    rotateConfirm.addEventListener("input", () => {
+      const ok = rotateConfirm.value.trim().toUpperCase() === "ROTATE";
+      rotateGo.style.pointerEvents = ok ? "auto" : "none";
+      rotateGo.style.opacity = ok ? "1" : ".55";
+    });
+  }
+
+  // Destroy modal (per row)
+  const destroyBackdrop = document.getElementById("destroyBackdrop");
+  const destroyConfirm = document.getElementById("destroyConfirm");
+  const destroyGo = document.getElementById("destroyGo");
+  const destroyVersion = document.getElementById("destroyVersion");
+
+  function openDestroyModal(el){
+    const url = el.getAttribute("data-destroy-url");
+    const ver = el.getAttribute("data-version");
+
+    destroyVersion.textContent = "v" + ver;
+    destroyGo.href = url;
+
+    destroyBackdrop.style.display = "flex";
+    destroyBackdrop.setAttribute("aria-hidden","false");
+
+    destroyConfirm.value = "";
+    destroyGo.style.pointerEvents = "none";
+    destroyGo.style.opacity = ".55";
+    setTimeout(()=>destroyConfirm.focus(), 50);
+  }
+
+  function closeDestroyModal(){
+    destroyBackdrop.style.display = "none";
+    destroyBackdrop.setAttribute("aria-hidden","true");
+  }
+
+  if(destroyBackdrop){
+    destroyBackdrop.addEventListener("click", (e) => {
+      if(e.target === destroyBackdrop) closeDestroyModal();
+    });
+  }
+
+  if(destroyConfirm){
+    destroyConfirm.addEventListener("input", () => {
+      const ok = destroyConfirm.value.trim().toUpperCase() === "DESTROY";
+      destroyGo.style.pointerEvents = ok ? "auto" : "none";
+      destroyGo.style.opacity = ok ? "1" : ".55";
+    });
+  }
+</script>
+
+</body>
+</html>

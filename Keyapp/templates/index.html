@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cryptography Key Management</title>
+
+<style>
+
+body{
+    margin:0;
+    font-family: Arial, Helvetica, sans-serif;
+    height:100vh;
+    
+    /* Online background image */
+    background-image: url("https://images.unsplash.com/photo-1550751827-4bd374c3f58b");
+    background-size: cover;
+    background-position: center;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+
+/* Glass container */
+.container{
+    background: rgba(0,0,0,0.65);
+    padding:50px;
+    border-radius:12px;
+    text-align:center;
+    color:white;
+    width:420px;
+    backdrop-filter: blur(8px);
+}
+
+h1{
+    margin-bottom:10px;
+    font-size:32px;
+    letter-spacing:1px;
+}
+
+p{
+    color:#ddd;
+    margin-bottom:30px;
+}
+
+/* buttons */
+.btn{
+    display:inline-block;
+    padding:12px 30px;
+    margin:10px;
+    text-decoration:none;
+    font-size:16px;
+    border-radius:6px;
+    transition:0.3s;
+}
+
+.signup{
+    background:#00c6ff;
+    color:white;
+}
+
+.login{
+    background:#4CAF50;
+    color:white;
+}
+
+.btn:hover{
+    transform:scale(1.05);
+    opacity:0.9;
+}
+
+/* footer */
+.footer{
+    position:absolute;
+    bottom:15px;
+    color:white;
+    font-size:14px;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>Cryptography Key Management</h1>
+<p>Secure Generation, Storage, Rotation and Destruction of Encryption Keys</p>
+
+<a href="{% url 'signup' %}" class="btn signup">Signup</a>
+<a href="{% url 'login' %}" class="btn login">Login</a>
+
+</div>
+
+<div class="footer">
+© 2026 Secure Key Management System
+</div>
+
+</body>
+</html>
