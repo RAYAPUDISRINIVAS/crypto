@@ -1,7 +1,27 @@
 import re
+import logging
 import bcrypt
+import psycopg
+from django.core.exceptions import ImproperlyConfigured
 from django.shortcuts import render
 from .db import get_connection
+
+logger = logging.getLogger(__name__)
+
+
+def _database_unavailable(request):
+    logger.exception("Key management database is unavailable.")
+    return render(
+        request,
+        "login.html",
+        {
+            "error_msg": (
+                "Login is temporarily unavailable because the database is not "
+                "ready. Please try again later."
+            )
+        },
+        status=503,
+    )
 
 
 # ==============================
@@ -38,7 +58,7 @@ def is_strong_password(pw: str) -> bool:
 # ==============================
 def Signup(request):
     """
-    User signup view (PyMySQL + bcrypt)
+    User signup view (PostgreSQL + bcrypt)
     """
     if request.method == "POST":
         username = (request.POST.get("t1") or "").strip()
@@ -60,29 +80,35 @@ def Signup(request):
         password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
         password_hash_str = password_hash.decode("utf-8")
 
-        con = get_connection()
         try:
-            with con.cursor() as cur:
-                # Check if username exists
-                cur.execute("SELECT id FROM users WHERE username=%s", (username,))
-                user = cur.fetchone()
+            con = get_connection()
+            try:
+                with con.cursor() as cur:
+                    cur.execute("SELECT id FROM users WHERE username=%s", (username,))
+                    user = cur.fetchone()
 
-                if user:
-                    return render(request, "signup.html", {"msg": "⚠️ Username already exists"})
+                    if user:
+                        return render(request, "signup.html", {"msg": "⚠️ Username already exists"})
 
-                # Insert new user
-                cur.execute(
-                    """
-                    INSERT INTO users (username, password_hash, contact_no, email, address, role)
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                    """,
-                    (username, password_hash_str, contact, email, address, "user"),
-                )
+                    cur.execute(
+                        """
+                        INSERT INTO users (username, password_hash, contact_no, email, address, role)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                        """,
+                        (username, password_hash_str, contact, email, address, "user"),
+                    )
 
-            return render(request, "login.html", {"msg": "✅ Signup successful! Login now."})
-
-        finally:
-            con.close()
+                return render(request, "login.html", {"msg": "✅ Signup successful! Login now."})
+            finally:
+                con.close()
+        except (ImproperlyConfigured, psycopg.Error):
+            logger.exception("Signup database operation failed.")
+            return render(
+                request,
+                "signup.html",
+                {"error_msg": "Signup is temporarily unavailable because the database is not ready."},
+                status=503,
+            )
 
     return render(request, "signup.html")
 
@@ -92,27 +118,33 @@ def Signup(request):
 # ==============================
 def Login(request):
     """
-    User login view (PyMySQL + bcrypt verify)
+    User login view (PostgreSQL + bcrypt verify)
     """
     if request.method == "POST":
         username = (request.POST.get("t1") or "").strip()
         password = request.POST.get("t2") or ""
 
-        con = get_connection()
+        try:
+            con = get_connection()
+        except (ImproperlyConfigured, psycopg.Error):
+            return _database_unavailable(request)
+
         try:
             with con.cursor() as cur:
-                # Get the stored hash for this username
-                cur.execute("SELECT username, password_hash, role FROM users WHERE username=%s", (username,))
+                cur.execute(
+                    "SELECT username, password_hash, role FROM users WHERE username=%s",
+                    (username,),
+                )
                 data = cur.fetchone()
 
             if data and bcrypt.checkpw(password.encode("utf-8"), data["password_hash"].encode("utf-8")):
-                # If you want session login:
                 request.session["username"] = data["username"]
                 request.session["role"] = data["role"]
                 return render(request, "user_home.html", {"user": data["username"]})
 
             return render(request, "login.html", {"msg": "❌ Invalid username or password"})
-
+        except psycopg.Error:
+            return _database_unavailable(request)
         finally:
             con.close()
 
@@ -162,7 +194,7 @@ def generate_key(request):
 
             # deactivate old active keys
             cur.execute(
-                "UPDATE user_keys SET is_active=0 WHERE username=%s AND is_active=1",
+                "UPDATE user_keys SET is_active=FALSE WHERE username=%s AND is_active=TRUE",
                 (username,)
             )
 
@@ -171,7 +203,7 @@ def generate_key(request):
             wrapped = wrap_user_key(user_key)
 
             cur.execute(
-                "INSERT INTO user_keys (username, key_version, wrapped_key, is_active) VALUES (%s, %s, %s, 1)",
+                "INSERT INTO user_keys (username, key_version, wrapped_key, is_active) VALUES (%s, %s, %s, TRUE)",
                 (username, next_version, wrapped)
             )
 
@@ -208,7 +240,7 @@ def view_keys(request):
             keys = cur.fetchall()
 
             cur.execute(
-                "SELECT key_version FROM user_keys WHERE username=%s AND is_active=1 LIMIT 1",
+                "SELECT key_version FROM user_keys WHERE username=%s AND is_active=TRUE LIMIT 1",
                 (username,)
             )
             active = cur.fetchone()
@@ -244,7 +276,7 @@ def encrypt_data(request):
             with con.cursor() as cur:
                 # get active key
                 cur.execute(
-                    "SELECT key_version, wrapped_key FROM user_keys WHERE username=%s AND is_active=1 LIMIT 1",
+                    "SELECT key_version, wrapped_key FROM user_keys WHERE username=%s AND is_active=TRUE LIMIT 1",
                     (username,)
                 )
                 keyrow = cur.fetchone()
@@ -332,7 +364,7 @@ def revoke_key(request, version):
     try:
         with con.cursor() as cur:
             cur.execute(
-                "UPDATE user_keys SET is_active=0, revoked_at=NOW() WHERE username=%s AND key_version=%s",
+                "UPDATE user_keys SET is_active=FALSE, revoked_at=NOW() WHERE username=%s AND key_version=%s",
                 (username, version)
             )
         return redirect("view_keys")
@@ -373,81 +405,70 @@ def rotate_and_reencrypt(request):
     con = get_connection()
 
     try:
-        # IMPORTANT: ensure transactional behavior for this operation
-        con.begin()
+        with con.transaction():
+            with con.cursor() as cur:
+                cur.execute(
+                    "SELECT key_version, wrapped_key FROM user_keys "
+                    "WHERE username=%s AND is_active=TRUE LIMIT 1",
+                    (username,),
+                )
+                old_key_row = cur.fetchone()
 
-        with con.cursor() as cur:
-            # 1) Get current active key (old key)
-            cur.execute(
-                "SELECT key_version, wrapped_key FROM user_keys WHERE username=%s AND is_active=1 LIMIT 1",
-                (username,)
-            )
-            old_key_row = cur.fetchone()
+                if not old_key_row:
+                    request.session["msg"] = "⚠️ No active key found. Generate a key first."
+                    return redirect("view_keys")
 
-            if not old_key_row:
-                con.rollback()
-                request.session["msg"] = "⚠️ No active key found. Generate a key first."
-                return redirect("view_keys")
-
-            old_version = int(old_key_row["key_version"])
-            old_user_key = unwrap_user_key(old_key_row["wrapped_key"])
-
-            # 2) Create NEW key version (but don't deactivate old yet)
-            cur.execute(
-                "SELECT COALESCE(MAX(key_version), 0) AS v FROM user_keys WHERE username=%s",
-                (username,)
-            )
-            row = cur.fetchone()
-            new_version = int(row["v"]) + 1
-
-            new_user_key = generate_user_key()
-            wrapped_new = wrap_user_key(new_user_key)
-
-            cur.execute(
-                """
-                INSERT INTO user_keys (username, key_version, wrapped_key, is_active)
-                VALUES (%s, %s, %s, 0)
-                """,
-                (username, new_version, wrapped_new)
-            )
-
-            # 3) Fetch all data encrypted with OLD version
-            cur.execute(
-                "SELECT id, ciphertext FROM secure_data WHERE username=%s AND key_version=%s",
-                (username, old_version)
-            )
-            items = cur.fetchall()
-
-            # 4) Re-encrypt each row from old key -> new key
-            updated = 0
-            for item in items:
-                plain = decrypt_with_user_key(old_user_key, item["ciphertext"])
-                new_cipher = encrypt_with_user_key(new_user_key, plain)
+                old_version = int(old_key_row["key_version"])
+                old_user_key = unwrap_user_key(old_key_row["wrapped_key"])
 
                 cur.execute(
-                    "UPDATE secure_data SET ciphertext=%s, key_version=%s WHERE id=%s AND username=%s",
-                    (new_cipher, new_version, item["id"], username)
+                    "SELECT COALESCE(MAX(key_version), 0) AS v FROM user_keys WHERE username=%s",
+                    (username,),
                 )
-                updated += 1
+                new_version = int(cur.fetchone()["v"]) + 1
 
-            # 5) Switch active key: deactivate old, activate new
-            cur.execute(
-                "UPDATE user_keys SET is_active=0 WHERE username=%s AND key_version=%s",
-                (username, old_version)
-            )
-            cur.execute(
-                "UPDATE user_keys SET is_active=1 WHERE username=%s AND key_version=%s",
-                (username, new_version)
-            )
+                new_user_key = generate_user_key()
+                wrapped_new = wrap_user_key(new_user_key)
+                cur.execute(
+                    """
+                    INSERT INTO user_keys (username, key_version, wrapped_key, is_active)
+                    VALUES (%s, %s, %s, FALSE)
+                    """,
+                    (username, new_version, wrapped_new),
+                )
 
-        con.commit()
+                cur.execute(
+                    "SELECT id, ciphertext FROM secure_data WHERE username=%s AND key_version=%s",
+                    (username, old_version),
+                )
+                items = cur.fetchall()
+
+                updated = 0
+                for item in items:
+                    plain = decrypt_with_user_key(old_user_key, item["ciphertext"])
+                    new_cipher = encrypt_with_user_key(new_user_key, plain)
+                    cur.execute(
+                        "UPDATE secure_data SET ciphertext=%s, key_version=%s "
+                        "WHERE id=%s AND username=%s",
+                        (new_cipher, new_version, item["id"], username),
+                    )
+                    updated += 1
+
+                cur.execute(
+                    "UPDATE user_keys SET is_active=FALSE WHERE username=%s AND key_version=%s",
+                    (username, old_version),
+                )
+                cur.execute(
+                    "UPDATE user_keys SET is_active=TRUE WHERE username=%s AND key_version=%s",
+                    (username, new_version),
+                )
+
         request.session["msg"] = f"✅ Rotation successful! New key v{new_version}. Re-encrypted {updated} records."
         return redirect("view_keys")
 
-    except Exception as e:
-        con.rollback()
-        # show friendly message
-        request.session["msg"] = f"❌ Rotation failed: {str(e)}"
+    except Exception:
+        logger.exception("Key rotation failed.")
+        request.session["msg"] = "❌ Rotation failed. Please try again or contact the site administrator."
         return redirect("view_keys")
 
     finally:
